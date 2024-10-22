@@ -10,7 +10,7 @@
 }
 
 .tab-button.active {
-  background-color: red;
+  background-color: #d40101  ;
   color: white;
   border-color: #fff;  }
 
@@ -30,7 +30,7 @@ border-radius: 8px;
 }
 
 .tab-button-small.active {
-background-color: red;
+background-color: #d40101;
 color: white;
 border-color: #fff;  
 }
