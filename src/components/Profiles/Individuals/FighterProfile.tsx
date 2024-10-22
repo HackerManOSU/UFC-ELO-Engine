@@ -71,14 +71,28 @@ const FighterProfile: React.FC = () => {
 
   return (
     <div className="fighter-profile m-12">
-      <h1 className='text-5xl font-bold mb-4'>{fighterData.Fighter}</h1>
-      <div className="fighter-stats">
-        <p><strong>Current ELO:</strong> {fighterData['Current ELO']}</p>
-        <p><strong>Peak ELO:</strong> {fighterData['Peak ELO']}</p>
-        <p><strong>Number of Fights:</strong> {fighterData['Number of Fights']}</p>
-        <p><strong>Average Performance:</strong> {fighterData['Average Performance']}</p>
-        <p><strong>Weight Classes:</strong> {fighterData['Weight Classes']}</p>
+
+      <div className='flex flex-col md:flex-row-reverse items-center max-w-[1200px] justify-between'>
+
+      <div>
+          <img src="/FighterPlaceholder.png" alt="" className='max-w-[350px]'/>
+        </div>
+
+        <div className=''>
+
+          <h1 className='text-5xl font-bold mb-4 text-center md:text-left'>{fighterData.Fighter}</h1>
+          <div className="fighter-stats">
+            <p><strong>Current ELO:</strong> {fighterData['Current ELO']}</p>
+            <p><strong>Peak ELO:</strong> {fighterData['Peak ELO']}</p>
+            <p><strong>Number of Fights:</strong> {fighterData['Number of Fights']}</p>
+            <p><strong>Average Performance:</strong> {fighterData['Average Performance']}</p>
+            <p><strong>Weight Classes:</strong> {fighterData['Weight Classes']}</p>
+          </div>
+
+        </div>
+
       </div>
+
 
       <div className="elo-history mt-12 text-3xl font-bold">
         <h2>ELO History</h2>

@@ -42,20 +42,6 @@ interface HeaderProps {
         >
           <nav className="flex justify-center w-[95%] max-w-[1200px] items-center">
   
-            {/*}
-            <div className="block lg:hidden">
-              <button
-                onClick={handleButtonClick}
-                className={`menu-button ${isOpen ? 'is-active' : ''}`}
-              >
-                <div className="bar"></div>
-                <div className="bar"></div>
-                <div className="bar"></div>
-              </button>
-            </div>
-            */}
-  
-            {/* Desktop Menu */}
             <ul className="flex justify-between text:lg text-center items-center text-white w-[100%] max-w-[800px]">
 
                 <li>
@@ -93,34 +79,6 @@ interface HeaderProps {
             </ul>
           </nav>
         </header>
-  
-        {/* Mobile Dropdown Menu
-        {isOpen && (
-          <ul
-            className={`header-mobile items-center justify-evenly h-[45vh] bg-[rgba(0,0,0,0.5)] text-white text-center backdrop-blur-md text-2xl absolute top-[90px] left-0 right-0 flex flex-col z-20 border-b-4 dropdown-enter dropdown-menu`}
-          >
-            <li>
-              <Link
-                to="/"
-                className="link hover:text-[#014421] block py-2 font-bold"
-                onClick={handleLinkClick}
-              >
-                Fighter Rankings
-              </Link>
-            </li>
-
-            <li>
-              <Link
-                to="/FighterProfiles"
-                className="link hover:text-[#014421] block py-2 font-bold"
-                onClick={handleLinkClick}
-              >
-                Fighter Profiles
-              </Link>
-            </li>
-
-          </ul>
-        )} */}
       </>
     );
   };
