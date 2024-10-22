@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import './FighterRankingTable.css'
+import './FighterRankingTable.css'; // You can style the tabs using a CSS file or inline styles
 
 interface FighterData {
   Fighter: string;
@@ -14,10 +14,14 @@ const FighterRankingTable: React.FC = () => {
   const [fighters, setFighters] = useState<FighterData[]>([]);
   const [filteredFighters, setFilteredFighters] = useState<FighterData[]>([]);
   const [genderFilter, setGenderFilter] = useState<string>('All');
-  const [weightClassFilter, setWeightClassFilter] = useState<string>('All');
+  const [weightClassFilter, setWeightClassFilter] = useState<Set<string>>(new Set(['All']));
   const [sortOption, setSortOption] = useState<string>('Current ELO');
+  const [activeWeightClasses, setActiveWeightClasses] = useState<string[]>([]);
 
-  // Load CSV data (assuming it is available in a JSON format for ease of use)
+  const weightClasses = ['Heavyweight', 'Light Heavyweight', 'Middleweight', 'Welterweight', 'Lightweight', 'Featherweight', 'Bantamweight', 'Flyweight', "Women's Bantamweight", "Women's Flyweight", "Women's Strawweight"];
+  const mensWeightClasses = ['Heavyweight', 'Light Heavyweight', 'Middleweight', 'Welterweight', 'Lightweight', 'Featherweight', 'Bantamweight', 'Flyweight'];
+  const womensWeightClasses = ["Women's Bantamweight", "Women's Flyweight", "Women's Strawweight"];
+
   useEffect(() => {
     fetch('/csvjson.json') // Replace with the correct path
       .then((response) => response.json())
@@ -27,10 +31,22 @@ const FighterRankingTable: React.FC = () => {
       });
   }, []);
 
+  // Update activeWeightClasses based on gender filter
+  useEffect(() => {
+    if (genderFilter === 'Men') {
+      setActiveWeightClasses(mensWeightClasses);
+    } else if (genderFilter === 'Women') {
+      setActiveWeightClasses(womensWeightClasses);
+    } else {
+      setActiveWeightClasses(weightClasses);
+    }
+  }, [genderFilter]);
+
   // Handle filtering based on gender and weight class
   useEffect(() => {
     let updatedFighters = [...fighters];
 
+    // Gender filter
     if (genderFilter !== 'All') {
       updatedFighters = updatedFighters.filter(fighter => {
         if (genderFilter === 'Men') {
@@ -42,13 +58,17 @@ const FighterRankingTable: React.FC = () => {
       });
     }
 
-    if (weightClassFilter !== 'All') {
+    // Weight class filter
+    if (!weightClassFilter.has('All')) {
       updatedFighters = updatedFighters.filter(fighter =>
-        fighter['Weight Classes'].includes(weightClassFilter)
+        Array.from(weightClassFilter).some((wc) => {
+          const isExactMatch = fighter['Weight Classes'].split(', ').some(className => className === wc);
+          return isExactMatch;
+        })
       );
     }
 
-    // Handle sorting
+    // Sorting
     updatedFighters = updatedFighters.sort((a, b) => {
       if (sortOption === 'Current ELO') {
         return b['Current ELO'] - a['Current ELO'];
@@ -61,12 +81,32 @@ const FighterRankingTable: React.FC = () => {
     setFilteredFighters(updatedFighters);
   }, [genderFilter, weightClassFilter, sortOption, fighters]);
 
+  // Handle weight class selection (multi-select)
+  const toggleWeightClass = (weightClass: string) => {
+    const newFilter = new Set(weightClassFilter);
+
+    if (weightClass === 'All') {
+      // Reset to "All" when "All" is clicked
+      setWeightClassFilter(new Set(['All']));
+    } else {
+      if (newFilter.has('All')) {
+        newFilter.delete('All');
+      }
+      if (newFilter.has(weightClass)) {
+        newFilter.delete(weightClass);
+      } else {
+        newFilter.add(weightClass);
+      }
+      setWeightClassFilter(newFilter);
+    }
+  };
+
   return (
-    <div className='m-8'>
-      <h1 className='text-6xl font-bold'>Fighter Rankings</h1>
+    <div className='main m-8'>
+      <h1 className='text-6xl font-black mb-4'>UFC Fighter Ratings</h1>
 
       {/* Gender Tabs */}
-      <div className="tabs">
+      <div className="tabs text-lg mb-4 flex">
         <button 
           className={`tab-button ${genderFilter === 'All' ? 'active' : ''}`}
           onClick={() => setGenderFilter('All')}
@@ -87,45 +127,60 @@ const FighterRankingTable: React.FC = () => {
         </button>
       </div>
 
-      {/* Weight Class Filter */}
-      <select value={weightClassFilter} onChange={(e) => setWeightClassFilter(e.target.value)}>
-        <option value="All">Weight Class</option>
-        <option value="Heavyweight">Heavyweight</option>
-        <option value="Light Heavyweight">Light Heavyweight</option>
-        <option value="Middleweight">Middleweight</option>
-        <option value="Welterweight">Welterweight</option>
-        <option value="Lightweight">Lightweight</option>
-        <option value="Featherweight">Featherweight</option>
-        <option value="Bantamweight">Bantamweight</option>
-        <option value="Flyweight">Flyweight</option>
-      </select>
+      {/* Weight Class Tabs */}
+      <div className="tabs-small text-smflex flex-wrap w-[100%]">
+        <button 
+          className={`tab-button-small px-4 py-2 mb-4 ${weightClassFilter.has('All') ? 'active' : ''}`}
+          onClick={() => toggleWeightClass('All')}
+        >
+          All
+        </button>
+        {activeWeightClasses.map((weightClass) => (
+          <button
+            key={weightClass}
+            className={`tab-button-small px-4 py-2 mb-4 ${weightClassFilter.has(weightClass) ? 'active' : ''}`}
+            onClick={() => toggleWeightClass(weightClass)}
+          >
+            {weightClass}
+          </button>
+        ))}
+      </div>
 
-      {/* Sort Option */}
-      <label>Sort By: </label>
-      <select value={sortOption} onChange={(e) => setSortOption(e.target.value)}>
-        <option value="Current ELO">Current ELO</option>
-        <option value="Peak ELO">Peak ELO</option>
-      </select>
+      {/* Sorting Tabs */}
+      <div className="tabs-small mb-4 text-sm">
+        <button
+          className={`tab-button-small px-4 py-2 ${sortOption === 'Current ELO' ? 'active' : ''}`}
+          onClick={() => setSortOption('Current ELO')}
+        >
+          Sort by Current ELO
+        </button>
+        <button
+          className={`tab-button-small px-4 py-2 ${sortOption === 'Peak ELO' ? 'active' : ''}`}
+          onClick={() => setSortOption('Peak ELO')}
+        >
+          Sort by Peak ELO
+        </button>
+      </div>
 
       {/* Table Display */}
       <table>
-        <thead>
+        <thead className='font-thin'>
           <tr>
+            <th>#</th>
             <th>Fighter</th>
             <th>Current ELO</th>
             <th>Peak ELO</th>
             <th>Number of Fights</th>
-            <th>Weight Classes</th>
           </tr>
         </thead>
-        <tbody>
-          {filteredFighters.map((fighter) => (
+        <tbody className='font-semibold'>
+          {filteredFighters.map((fighter, index) => (
             <tr key={fighter.Fighter}>
+              <td className='text-center'>{index + 1}</td>
               <td>{fighter.Fighter}</td>
               <td className='text-center'>{fighter['Current ELO']}</td>
               <td className='text-center'>{fighter['Peak ELO']}</td>
               <td className='text-center'>{fighter['Number of Fights']}</td>
-              <td>{fighter['Weight Classes']}</td>
             </tr>
           ))}
         </tbody>
