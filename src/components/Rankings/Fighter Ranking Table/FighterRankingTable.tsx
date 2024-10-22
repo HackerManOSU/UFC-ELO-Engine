@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import './FighterRankingTable.css'; // You can style the tabs using a CSS file or inline styles
+import './FighterRankingTable.css';
 
 interface FighterData {
   Fighter: string;
@@ -164,7 +164,9 @@ const FighterRankingTable: React.FC = () => {
       </div>
 
       {/* Table Display */}
-      <table>
+      <div className='table-container'>
+
+      <table className='table-container'>
         <thead className='font-thin'>
           <tr>
             <th>#</th>
@@ -190,6 +192,9 @@ const FighterRankingTable: React.FC = () => {
           ))}
         </tbody>
       </table>
+
+      </div>
+
     </div>
   );
 };

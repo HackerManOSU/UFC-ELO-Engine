@@ -67,7 +67,7 @@ const FighterProfile: React.FC = () => {
     ],
   };
 
-  const performanceHistory = fighterData['Performance History'].split(', ').map((value: string) => parseFloat(value).toFixed(2));
+  const performanceHistory = fighterData['Performance History'].split(', ').map((value: string) => parseFloat(value).toFixed(2)); // Round to 2 decimals
 
   return (
     <div className="fighter-profile m-12">
