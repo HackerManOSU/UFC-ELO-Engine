@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import './FighterRankingTable.css'; // You can style the tabs using a CSS file or inline styles
 
 interface FighterData {
@@ -177,7 +178,11 @@ const FighterRankingTable: React.FC = () => {
           {filteredFighters.map((fighter, index) => (
             <tr key={fighter.Fighter}>
               <td className='text-center'>{index + 1}</td>
-              <td>{fighter.Fighter}</td>
+              <td>
+                <Link className='hover:text-[#ff817e]' to={`/FighterProfiles/${fighter.Fighter.toLowerCase().replace(/\s+/g, '-')}`}>
+                  {fighter.Fighter}
+                </Link>
+              </td>
               <td className='text-center'>{fighter['Current ELO']}</td>
               <td className='text-center'>{fighter['Peak ELO']}</td>
               <td className='text-center'>{fighter['Number of Fights']}</td>

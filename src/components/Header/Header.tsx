@@ -40,7 +40,7 @@ interface HeaderProps {
         <header
           className={'header flex w-screen min-h-[90px] h-[8vh] justify-center bg-black px-4 py-1 relative z-20 border-b-4 border-[#d40101]'}
         >
-          <nav className="flex justify-center w-[90%] max-w-[1200px] items-center">
+          <nav className="flex justify-center w-[95%] max-w-[1200px] items-center">
   
             {/*}
             <div className="block lg:hidden">
@@ -56,7 +56,7 @@ interface HeaderProps {
             */}
   
             {/* Desktop Menu */}
-            <ul className="flex justify-evenly text:lg text-center items-center text-white w-[75%]">
+            <ul className="flex justify-between text:lg text-center items-center text-white w-[100%] max-w-[800px]">
 
                 <li>
                     <Link

@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css'
 import Header from './components/Header/Header'
 import FighterRankingTable from './components/Rankings/Fighter Ranking Table/FighterRankingTable'
+import FighterProfilesSearch from './components/Profiles/Search/FighterProfilesSearch'
+import FighterProfile from './components/Profiles/Individuals/FighterProfile'
 
 function App() {
 
@@ -22,6 +24,9 @@ function App() {
 
 
           <Route path="/" element={<FighterRankingTable/>} />
+          <Route path="/FighterProfiles" element={<FighterProfilesSearch/>} />
+          <Route path="/FighterProfiles/:fighterName" element={<FighterProfile/>} />
+
 
         </Routes>
 
