@@ -1,6 +1,6 @@
-import * as fs from 'fs';
-import * as csvParser from 'csv-parser';
-import { createObjectCsvWriter } from 'csv-writer';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
+import { createObjectCsvWriter as createCsvWriter } from 'csv-writer';
 
 interface FightData {
   event: string;
@@ -21,222 +21,178 @@ interface FightData {
   time: string;
 }
 
-interface FighterData {
-  rating: number;
-  peakRating: number;  // Track the highest rating achieved
-  fights: number;
-  lastFightDate: Date;
-  weightClasses: Set<string>;
-  ratingHistory: number[];
+const BASE_URL = 'http://ufcstats.com';
+
+async function getCompletedEvents() {
+  const events: { name: string; link: string }[] = [];
+  let page = 1;
+
+  while (true) {
+    const url = `${BASE_URL}/statistics/events/completed?page=${page}`;
+    console.log(`Fetching events from page ${page}`);
+    const { data } = await axios.get(url);
+    const $ = cheerio.load(data);
+
+    let eventsOnPage = 0;
+
+    $('.b-statistics__table-events > tbody > tr').each((_, element) => {
+      const eventLink = $(element).find('a').attr('href');
+      const eventName = $(element).find('a').text().trim();
+      if (eventLink && eventName) {
+        events.push({ name: eventName, link: eventLink });
+        eventsOnPage++;
+      }
+    });
+
+    if (eventsOnPage === 0) {
+      console.log('No more events found. Exiting pagination.');
+      break;
+    }
+
+    page++;
+  }
+
+  return events;
 }
 
-interface FighterRatings {
-  [fighterName: string]: FighterData;
-}
+/* Only first page - for testing
 
-const DEFAULT_RATING = 1500;
-const MAX_K_FACTOR = 32;
-const MIN_K_FACTOR = 16;
-const K_FACTOR_DECAY = 0.95;  // Rating volatility decreases with more fights
+async function getCompletedEvents() {
+  const events: { name: string; link: string }[] = [];
+  const page = 1; // Always fetch only the first page
 
-const fighterRatings: FighterRatings = {};
+  const url = `${BASE_URL}/statistics/events/completed?page=${page}`;
+  console.log(`Fetching events from page ${page}`);
+  const { data } = await axios.get(url);
+  const $ = cheerio.load(data);
 
-async function readCSV(filePath: string): Promise<FightData[]> {
-  return new Promise((resolve, reject) => {
-    const fights: FightData[] = [];
-    fs.createReadStream(filePath)
-      .pipe(csvParser())
-      .on('data', (data) => {
-        const fightData: FightData = {
-          event: data['Event'] || 'Unknown Event',
-          fighter1: data['Fighter 1']?.trim() || 'Unknown Fighter 1',
-          fighter2: data['Fighter 2']?.trim() || 'Unknown Fighter 2',
-          result: data['Result']?.trim() || 'Unknown Result',
-          KDs_fighter1: parseInt(data['KDs (Fighter 1)']) || 0,
-          KDs_fighter2: parseInt(data['KDs (Fighter 2)']) || 0,
-          STR_fighter1: parseInt(data['STR (Fighter 1)']) || 0,
-          STR_fighter2: parseInt(data['STR (Fighter 2)']) || 0,
-          TDs_fighter1: parseInt(data['TDs (Fighter 1)']) || 0,
-          TDs_fighter2: parseInt(data['TDs (Fighter 2)']) || 0,
-          Subs_fighter1: parseInt(data['Subs (Fighter 1)']) || 0,
-          Subs_fighter2: parseInt(data['Subs (Fighter 2)']) || 0,
-          weightClass: data['Weight Class']?.trim() || 'Unknown Weight Class',
-          method: data['Method']?.trim() || 'Unknown Method',
-          round: data['Round']?.trim() || 'Unknown Round',
-          time: data['Time']?.trim() || 'Unknown Time',
-        };
-        fights.push(fightData);
-      })
-      .on('end', () => resolve(fights))
-      .on('error', (error) => reject(error));
+  $('.b-statistics__table-events > tbody > tr').each((_, element) => {
+    const eventLink = $(element).find('a').attr('href');
+    const eventName = $(element).find('a').text().trim();
+    if (eventLink && eventName) {
+      events.push({ name: eventName, link: eventLink });
+    }
   });
+
+  return events; // Return the events from the first page only
+}
+  */
+
+async function getFightsFromEvent(event: { name: string; link: string }) {
+  const { data } = await axios.get(event.link);
+  const $ = cheerio.load(data);
+
+  const fights: FightData[] = [];
+
+  $('.b-fight-details__table-body > tr').each((_, element) => {
+    const columns = $(element).find('td');
+
+    // const fighter1 = $(columns[1]).find('p').first().text().trim();
+    // const fighter2 = $(columns[1]).find('p').last().text().trim();
+
+    const fighter1Element = $(columns[1]).find('p').first();
+    const fighter2Element = $(columns[1]).find('p').last();
+    
+    const fighter1 = fighter1Element.length > 0 ? fighter1Element.text().trim() : 'Unknown Fighter 1';
+    const fighter2 = fighter2Element.length > 0 ? fighter2Element.text().trim() : 'Unknown Fighter 2';
+    
+
+    // Determining the result (win, loss, or draw)
+    const result = $(columns[0]).text().trim().toLowerCase();
+    let winner: string;
+    if (result.includes('win')) {
+      winner = fighter1;
+    } else {
+      winner = 'Draw';
+    }
+
+    const KDs_fighter1 = parseInt($(columns[2]).text().trim().match(/\d+/)?.[0] || '0', 10);
+    const KDs_fighter2 = parseInt($(columns[2]).text().trim().match(/\d+/g)?.[1] || '0', 10);
+
+    const STR_fighter1 = parseInt($(columns[3]).text().trim().match(/\d+/)?.[0] || '0', 10);
+    const STR_fighter2 = parseInt($(columns[3]).text().trim().match(/\d+/g)?.[1] || '0', 10);
+    
+    const TDs_fighter1 = parseInt($(columns[4]).text().trim().match(/\d+/)?.[0] || '0', 10);
+    const TDs_fighter2 = parseInt($(columns[4]).text().trim().match(/\d+/g)?.[1] || '0', 10);
+    
+    const Subs_fighter1 = parseInt($(columns[5]).text().trim().match(/\d+/)?.[0] || '0', 10);
+    const Subs_fighter2 = parseInt($(columns[5]).text().trim().match(/\d+/g)?.[1] || '0', 10);
+
+    const weightClass = $(columns[6]).text().trim();
+
+    const method = $(columns[7]).text().trim();
+    
+    const round = $(columns[8]).text().trim();
+    
+    const time = $(columns[9]).text().trim();
+
+    fights.push({
+      event: event.name,
+      fighter1,
+      fighter2,
+      result: winner,
+      KDs_fighter1,
+      KDs_fighter2,
+      STR_fighter1,
+      STR_fighter2,
+      TDs_fighter1,
+      TDs_fighter2,
+      Subs_fighter1,
+      Subs_fighter2,
+      weightClass,
+      method,
+      round,
+      time,
+    });
+  });
+
+  return fights;
 }
 
-function calculatePerformanceScore(fight: FightData, isFirstFighter: boolean): number {
-  // Weight factors for different fight statistics
-  const KD_WEIGHT = 5.0;    // Knockdowns are highly significant
-  const STR_WEIGHT = 0.1;   // Significant strikes
-  const TD_WEIGHT = 2.0;    // Takedowns
-  const SUB_WEIGHT = 3.0;   // Submission attempts
+async function scrapeUFCData() {
+  const events = await getCompletedEvents();
+  const allFights: FightData[] = [];
 
-  const kdsDiff = (fight.KDs_fighter1 - fight.KDs_fighter2) * (isFirstFighter ? 1 : -1);
-  const strDiff = (fight.STR_fighter1 - fight.STR_fighter2) * (isFirstFighter ? 1 : -1);
-  const tdsDiff = (fight.TDs_fighter1 - fight.TDs_fighter2) * (isFirstFighter ? 1 : -1);
-  const subsDiff = (fight.Subs_fighter1 - fight.Subs_fighter2) * (isFirstFighter ? 1 : -1);
-
-  // Normalize the performance score to be between -1 and 1
-  return (kdsDiff * KD_WEIGHT + strDiff * STR_WEIGHT + tdsDiff * TD_WEIGHT + subsDiff * SUB_WEIGHT) / 100;
-}
-
-function getKFactor(fights: number, ratingDifference: number): number {
-  // Base K-factor decreases with more fights
-  const baseFactor = Math.max(MIN_K_FACTOR, MAX_K_FACTOR * Math.pow(K_FACTOR_DECAY, fights));
-  
-  // Adjust K-factor based on rating difference (bigger updates for unexpected results)
-  const adjustmentFactor = 1 + Math.abs(ratingDifference) / 400;
-  
-  return Math.min(baseFactor * adjustmentFactor, MAX_K_FACTOR);
-}
-
-function getMethodBonus(method: string): number {
-  // Bonus multiplier based on finish type
-  if (method.toLowerCase().includes('ko') || method.toLowerCase().includes('tko')) {
-    return 1.2;  // 20% bonus for knockouts
-  } else if (method.toLowerCase().includes('submission')) {
-    return 1.15;  // 15% bonus for submissions
-  }
-  return 1.0;  // No bonus for decisions
-}
-
-function updateRatings(fight: FightData, date: Date) {
-  const fighter1 = fight.fighter1;
-  const fighter2 = fight.fighter2;
-
-  // Initialize fighter data if not present
-  if (!fighterRatings[fighter1]) {
-    fighterRatings[fighter1] = {
-      rating: DEFAULT_RATING,
-      peakRating: DEFAULT_RATING,
-      fights: 0,
-      lastFightDate: date,
-      weightClasses: new Set([fight.weightClass]),
-      ratingHistory: [DEFAULT_RATING]
-    };
-  }
-  if (!fighterRatings[fighter2]) {
-    fighterRatings[fighter2] = {
-      rating: DEFAULT_RATING,
-      peakRating: DEFAULT_RATING,
-      fights: 0,
-      lastFightDate: date,
-      weightClasses: new Set([fight.weightClass]),
-      ratingHistory: [DEFAULT_RATING]
-    };
-  }
-
-  // Update weight classes
-  fighterRatings[fighter1].weightClasses.add(fight.weightClass);
-  fighterRatings[fighter2].weightClasses.add(fight.weightClass);
-
-  const ratingA = fighterRatings[fighter1].rating;
-  const ratingB = fighterRatings[fighter2].rating;
-
-  // Calculate expected scores
-  const expectedA = 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
-  const expectedB = 1 - expectedA;
-
-  // Determine actual outcome
-  let scoreA: number;
-  let scoreB: number;
-
-  if (fight.result === fighter1) {
-    scoreA = 1;
-    scoreB = 0;
-  } else if (fight.result === fighter2) {
-    scoreA = 0;
-    scoreB = 1;
-  } else {
-    scoreA = 0.5;
-    scoreB = 0.5;
+  for (const event of events) {
+    console.log(`Scraping event: ${event.name}`);
+    const fights = await getFightsFromEvent(event);
+    allFights.push(...fights);
   }
 
-  // Calculate performance scores
-  const performanceA = calculatePerformanceScore(fight, true);
-  const performanceB = calculatePerformanceScore(fight, false);
-
-  // Get method bonus
-  const methodBonus = getMethodBonus(fight.method);
-
-  // Calculate K-factors
-  const kFactorA = getKFactor(fighterRatings[fighter1].fights, ratingA - ratingB);
-  const kFactorB = getKFactor(fighterRatings[fighter2].fights, ratingB - ratingA);
-
-  // Update ratings
-  const newRatingA = ratingA + kFactorA * ((scoreA + performanceA) - expectedA) * methodBonus;
-  const newRatingB = ratingB + kFactorB * ((scoreB + performanceB) - expectedB) * methodBonus;
-
-  // Update fighter data
-  fighterRatings[fighter1].rating = newRatingA;
-  fighterRatings[fighter2].rating = newRatingB;
-  
-  fighterRatings[fighter1].peakRating = Math.max(newRatingA, fighterRatings[fighter1].peakRating);
-  fighterRatings[fighter2].peakRating = Math.max(newRatingB, fighterRatings[fighter2].peakRating);
-  
-  fighterRatings[fighter1].ratingHistory.push(newRatingA);
-  fighterRatings[fighter2].ratingHistory.push(newRatingB);
-  
-  fighterRatings[fighter1].fights++;
-  fighterRatings[fighter2].fights++;
-  
-  fighterRatings[fighter1].lastFightDate = date;
-  fighterRatings[fighter2].lastFightDate = date;
+  return allFights;
 }
 
-async function writeRatingsToCSV(filePath: string, ratings: FighterRatings) {
-  const sortedRatings = Object.entries(ratings)
-    .sort(([, dataA], [, dataB]) => dataB.rating - dataA.rating)
-    .map(([fighter, data]) => ({
-      fighter,
-      rating: data.rating.toFixed(2),
-      peakRating: data.peakRating.toFixed(2),
-      fights: data.fights,
-      weightClasses: Array.from(data.weightClasses).join(', '),
-      lastFight: data.lastFightDate.toISOString().split('T')[0],
-      ratingHistory: data.ratingHistory.map(r => r.toFixed(2)).join(', ')
-    }));
-
-  const csvWriter = createObjectCsvWriter({
-    path: filePath,
+async function exportToCSV(fights: FightData[]) {
+  const csvWriter = createCsvWriter({
+    path: 'ufc_fights.csv',
     header: [
-      { id: 'fighter', title: 'Fighter' },
-      { id: 'rating', title: 'Current ELO Rating' },
-      { id: 'peakRating', title: 'Peak ELO Rating' },
-      { id: 'fights', title: 'Total Fights' },
-      { id: 'weightClasses', title: 'Weight Classes' },
-      { id: 'lastFight', title: 'Last Fight Date' },
-      { id: 'ratingHistory', title: 'Rating History' }
+      { id: 'event', title: 'Event' },
+      { id: 'fighter1', title: 'Fighter 1' },
+      { id: 'fighter2', title: 'Fighter 2' },
+      { id: 'result', title: 'Result' },
+      { id: 'KDs_fighter1', title: 'KDs (Fighter 1)' },
+      { id: 'KDs_fighter2', title: 'KDs (Fighter 2)' },
+      { id: 'STR_fighter1', title: 'STR (Fighter 1)' },
+      { id: 'STR_fighter2', title: 'STR (Fighter 2)' },
+      { id: 'TDs_fighter1', title: 'TDs (Fighter 1)' },
+      { id: 'TDs_fighter2', title: 'TDs (Fighter 2)' },
+      { id: 'Subs_fighter1', title: 'Subs (Fighter 1)' },
+      { id: 'Subs_fighter2', title: 'Subs (Fighter 2)' },
+      { id: 'weightClass', title: 'Weight Class' },
+      { id: 'method', title: 'Method' },
+      { id: 'round', title: 'Round' },
+      { id: 'time', title: 'Time' },
     ],
   });
 
-  await csvWriter.writeRecords(sortedRatings);
-  console.log(`Fighter ratings written to ${filePath}`);
+  await csvWriter.writeRecords(fights);
+  console.log('Data exported to ufc_fights.csv');
 }
 
 (async () => {
   try {
-    // Read and sort fights chronologically
-    const fights = await readCSV('../Scraper/ufc_fights.csv');
-    fights.sort((a, b) => new Date(a.event).getTime() - new Date(b.event).getTime());
-
-    // Process all fights
-    for (const fight of fights) {
-      const fightDate = new Date(fight.event);
-      updateRatings(fight, fightDate);
-    }
-
-    // Export results
-    await writeRatingsToCSV('fighter_ratings.csv', fighterRatings);
-
+    const fights = await scrapeUFCData();
+    await exportToCSV(fights);
   } catch (error) {
     console.error('An error occurred:', error);
   }
